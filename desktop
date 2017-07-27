@@ -19,11 +19,6 @@ dtype = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 #print(torch.__version__)
 iters = 4000  ## try 1000(loss converges well)
 ##building networks
-
-
-
-
-
 #print use_cuda
 
 
@@ -109,7 +104,7 @@ def testfn(input1):
     return result
 
 
-def plot_1D_function(variable_x, func, title, linestyle, color, loc=save): 
+def plot_1D_function(variable_x, func, title, linestyle, color, loc): 
 	a1 = variable_x[:,0]
 	b1 = func[:,0]
 	c1 = a1.data.cpu().numpy()
@@ -122,98 +117,101 @@ def plot_1D_function(variable_x, func, title, linestyle, color, loc=save):
 	plt.savefig(''.join([loc, '/', title]))
 	return fig
 
-def plot_loss_function(epochs, loss_list, title, loc=save):
+def plot_loss_function(epochs, loss_list, title, loc):
 	fig = plt.figure(title)
 	c_p = plt.plot(epochs, loss_list)
 	plt.title(title)
 	plt.savefig(''.join([loc, '/', title]))
 	return fig
 
+
+test_numbers = 10
+for j in range(test_numbers):
+	save_dir = str(j+5)
+	save = os.path.expanduser(save_dir)
+	if os.path.isdir(save):
+    		shutil.rmtree(save)
+	os.makedirs(save)
+
 ##Training
-criterion = nn.MSELoss()
-generator3 = chain(net1.parameters(),net2.parameters())
-optimizer1 = optim.Adam(generator3, lr = 0.0005, weight_decay=0.0)
-input1=Variable(torch.randn(128, 1), requires_grad=True).type(dtype)
+	criterion = nn.MSELoss()
+	generator3 = chain(net1.parameters(),net2.parameters())
+	optimizer1 = optim.Adam(generator3, lr = 0.0005, weight_decay=0.0)
+	input1=Variable(torch.randn(128, 1), requires_grad=True).type(dtype)
 ###zero =Variable(torch.zeros(64, 1), requires_grad=False)
 # Training loop:
-phi1_tensor0, phi1_scalar0 = net1(input1)
-loss_list_1 = []
-loss_list_2 = []
-loss_list_3 = []
-loss_list_4 = []
-loss_list_test = []
-total_loss = []
-for i in range(iters):
+	phi1_tensor0, phi1_scalar0 = net1(input1)
+	loss_list_1 = []
+	loss_list_2 = []
+	loss_list_3 = []
+	loss_list_4 = []
+	loss_list_test = []
+	total_loss = []
+	for i in range(iters):
 ##    optimizer1.zero_grad()
     ## input1, net1
-    phi1_tensor, phi1_scalar = net1(input1)
-    phi1_scalar.backward(retain_variables=True)
-    phi1_tensor = phi1_tensor.type(dtype)
-    phi1_scalar = phi1_scalar.type(dtype)
+	    phi1_tensor, phi1_scalar = net1(input1)
+	    phi1_scalar.backward(retain_variables=True)
+	    phi1_tensor = phi1_tensor.type(dtype)
+	    phi1_scalar = phi1_scalar.type(dtype)
     ## input2, net2
-    input2 = autograd.grad(outputs=phi1_tensor,inputs=input1,grad_outputs=torch.ones(phi1_tensor.size()).type(dtype),
-                                retain_graph=True,create_graph=True)[0]
-    phi2_tensor, phi2_scalar = net2(input2)
-    phi2_tensor = phi2_tensor.type(dtype)
-    phi2_scalar = phi2_scalar.type(dtype)
-    phi2_scalar.backward(retain_variables=True)
+	    input2 = autograd.grad(outputs=phi1_tensor,inputs=input1,grad_outputs=torch.ones(phi1_tensor.size()).type(dtype),
+	                                retain_graph=True,create_graph=True)[0]
+	    phi2_tensor, phi2_scalar = net2(input2)
+	    phi2_tensor = phi2_tensor.type(dtype)
+	    phi2_scalar = phi2_scalar.type(dtype)
+	    phi2_scalar.backward(retain_variables=True)
     ## output, f3
-    output = autograd.grad(outputs=phi2_tensor,inputs=input2,grad_outputs=torch.ones(phi2_tensor.size()).type(dtype),
-                                retain_graph=True,create_graph=True)[0]
-    f3,f3_sum = compute_f3(output,input2,phi2_tensor)
+	    output = autograd.grad(outputs=phi2_tensor,inputs=input2,grad_outputs=torch.ones(phi2_tensor.size()).type(dtype),
+        	                        retain_graph=True,create_graph=True)[0]
+	    f3,f3_sum = compute_f3(output,input2,phi2_tensor)
     ## loss functions
-    loss1 = constraint_1(phi1_tensor, f3)
-    loss2 = constraint_4(input1,input2,phi1_tensor, phi2_tensor)/6
-    dummy_input1 = Variable(torch.rand(64, 1), requires_grad=True).type(dtype)
-    dummy_input2 = Variable(torch.rand(64, 1), requires_grad=True).type(dtype)
-    dummy_phi1_tensor, dummy_phi1_scalar = net1(dummy_input1)
-    dummy_phi2_tensor, dummy_phi2_scalar = net2(dummy_input2)
-    loss3 = constraint_3(dummy_input1,dummy_input2,dummy_phi1_tensor,dummy_phi2_tensor)
-    loss4 = constraint_1(input1, output)
+	    loss1 = constraint_1(phi1_tensor, f3)
+	    loss2 = constraint_4(input1,input2,phi1_tensor, phi2_tensor)/6
+	    dummy_input1 = Variable(torch.rand(64, 1), requires_grad=True).type(dtype)
+	    dummy_input2 = Variable(torch.rand(64, 1), requires_grad=True).type(dtype)
+	    dummy_phi1_tensor, dummy_phi1_scalar = net1(dummy_input1)
+	    dummy_phi2_tensor, dummy_phi2_scalar = net2(dummy_input2)
+	    loss3 = constraint_2(dummy_input1,dummy_input2,dummy_phi1_tensor,dummy_phi2_tensor)
+	    loss4 = constraint_1(input1, output)
     #pdb.set_trace()
-    loss_test = constraint_1(phi1_tensor, testfn(input1))
+	    loss_test = constraint_1(phi1_tensor, testfn(input1))
     #loss = -i*loss3 + loss_test
-    loss =  loss2 + loss4.pow(2)+ loss3.pow(2)  # i*(loss4.pow(2) +loss3)/100 # + loss_test #+ loss1 
-
+	    loss =  loss2 + (loss4 +loss3) # + loss_test #+ loss1 
 ##    testoutput=input1.pow(2)
 ##    loss = criterion(phi1_tensor, testoutput)
     ## for loss graphing
-    loss_list_1.append(loss1.data.cpu().numpy())
-    loss_list_2.append(loss2.data.cpu().numpy())
-    loss_list_3.append(loss3.data.cpu().numpy())
-    loss_list_4.append(loss4.data.cpu().numpy())
-    loss_list_test.append(loss_test.data.cpu().numpy())
-    total_loss.append(loss.data.cpu().numpy())
+	    loss_list_1.append(loss1.data.cpu().numpy())
+	    loss_list_2.append(loss2.data.cpu().numpy())
+	    loss_list_3.append(loss3.data.cpu().numpy())
+	    loss_list_4.append(loss4.data.cpu().numpy())
+	    loss_list_test.append(loss_test.data.cpu().numpy())
+	    total_loss.append(loss.data.cpu().numpy())
     ## backward
-    optimizer1.zero_grad() #++
-    loss.backward(retain_variables=True)
-    optimizer1.step()
+	    optimizer1.zero_grad() #++
+	    loss.backward(retain_variables=True)
+	    optimizer1.step()
 
-print("Training Finished!")
-
-
-
-
-
-fig_f1= plot_1D_function(input1, phi1_tensor, 'f1', 'dotted', 'green', loc=save)
-fig_f1.show()
-fig_f2= plot_1D_function(input2, phi2_tensor, 'f2', 'dotted', 'black', loc=save)
-fig_f2.show()
-fig_f3= plot_1D_function(output, f3, 'f3', 'dotted', 'purple', loc=save)
-fig_f3.show()
-epochs = np.arange(iters)
-fig_l1 = plot_loss_function(epochs, np.asarray(loss_list_1), "loss1")
-fig_l1.show()
-fig_l2 = plot_loss_function(epochs, np.asarray(loss_list_2), "loss2")
-fig_l2.show()
-fig_l3 = plot_loss_function(epochs, np.asarray(loss_list_3), "loss3")
-fig_l3.show()
-fig_l4 = plot_loss_function(epochs, np.asarray(loss_list_4), "loss4")
-fig_l4.show()
-fig_lt = plot_loss_function(epochs, np.asarray(loss_list_test), "loss of test function")
-fig_lt.show()
-fig_Tl = plot_loss_function(epochs, np.asarray(total_loss), "Total loss")
-fig_Tl.show()
-print(loss)
+	print("Training Finished for "+str(j+5)+'!')
+	fig_f1= plot_1D_function(input1, phi1_tensor, 'f1', 'dotted', 'green', save)
+	fig_f1.show()
+	fig_f2= plot_1D_function(input2, phi2_tensor, 'f2', 'dotted', 'black', save)
+	fig_f2.show()
+	fig_f3= plot_1D_function(output, f3, 'f3', 'dotted', 'purple', save)
+	fig_f3.show()
+	epochs = np.arange(iters)
+	#fig_l1 = plot_loss_function(epochs, np.asarray(loss_list_1), "loss1", save)
+	#fig_l1.show()
+	fig_l2 = plot_loss_function(epochs, np.asarray(loss_list_2), "loss2", save)
+	fig_l2.show()
+	fig_l3 = plot_loss_function(epochs, np.asarray(loss_list_3), "loss3", save)
+	fig_l3.show()
+	fig_l4 = plot_loss_function(epochs, np.asarray(loss_list_4), "loss4", save)
+	fig_l4.show()
+	#fig_lt = plot_loss_function(epochs, np.asarray(loss_list_test), "loss of test function", save)
+	#fig_lt.show()
+	fig_Tl = plot_loss_function(epochs, np.asarray(total_loss), "Total loss", save)
+	fig_Tl.show()
+	print(loss)
 
 
