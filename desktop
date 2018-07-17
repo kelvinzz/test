@@ -23,6 +23,7 @@ iters = 4000  ## try 1000(loss converges well)
 
 
 
+
 ##########################
 #To_do: limit the weight to shrink the range of input2 and output
 ##########################
